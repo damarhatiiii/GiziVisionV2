@@ -35,28 +35,37 @@ function resizeAndCompressImage(file, maxWidth = 1024, maxHeight = 1024, quality
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
+      try {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
 
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
         }
-      } else {
-        if (height > maxHeight) {
-          width = Math.round((width * maxHeight) / height);
-          height = maxHeight;
-        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        
+        // Revoke only after successfully drawing and converting to prevent Safari iOS bugs
+        URL.revokeObjectURL(objectUrl);
+        resolve(compressedDataUrl);
+      } catch (err) {
+        URL.revokeObjectURL(objectUrl);
+        reject(err);
       }
-
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
@@ -127,7 +136,10 @@ export default function UploadZone() {
   };
 
   const processFile = async (selectedFile) => {
-    if (!selectedFile.type.startsWith('image/')) {
+    // Check type OR file extension to handle iOS HEIC/HEIF correctly
+    const isImage = selectedFile.type.startsWith('image/') || 
+                    /\.(heic|heif|jpg|jpeg|png|webp)$/i.test(selectedFile.name);
+    if (!isImage) {
       setError('Format berkas harus berupa gambar (JPG, PNG, WEBP).');
       return;
     }
@@ -141,9 +153,18 @@ export default function UploadZone() {
       setBase64Image(compressed);
     } catch (err) {
       console.error('Image compression error:', err);
-      const reader = new FileReader();
-      reader.onloadend = () => setBase64Image(reader.result);
-      reader.readAsDataURL(selectedFile);
+      // Fallback: If compression fails but the file is reasonably small, try loading via FileReader
+      if (selectedFile.size < 1.5 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onloadend = () => setBase64Image(reader.result);
+        reader.readAsDataURL(selectedFile);
+      } else {
+        setError('Gambar dari kamera terlalu besar dan gagal dikompresi di browser Anda. Silakan coba unggah foto dengan resolusi lebih rendah atau pilih dari galeri.');
+        setLoading(false);
+        setFile(null);
+        setPreviewUrl('');
+        return;
+      }
     } finally {
       setLoading(false);
     }
