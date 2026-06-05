@@ -26,6 +26,46 @@ function createThumbnail(base64Image, maxWidth = 120, quality = 0.5) {
   });
 }
 
+/**
+ * Resize and compress image to prevent Vercel 413 Payload Too Large / 504 Timeout errors.
+ * Returns compressed base64 JPEG.
+ */
+function resizeAndCompressImage(file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('Gagal memproses gambar.'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function UploadZone() {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState(null);
@@ -80,7 +120,7 @@ export default function UploadZone() {
     if (e.target.files?.[0]) processFile(e.target.files[0]);
   };
 
-  const processFile = (selectedFile) => {
+  const processFile = async (selectedFile) => {
     if (!selectedFile.type.startsWith('image/')) {
       setError('Format berkas harus berupa gambar (JPG, PNG, WEBP).');
       return;
@@ -88,9 +128,19 @@ export default function UploadZone() {
     setError('');
     setFile(selectedFile);
     setPreviewUrl(URL.createObjectURL(selectedFile));
-    const reader = new FileReader();
-    reader.onloadend = () => setBase64Image(reader.result);
-    reader.readAsDataURL(selectedFile);
+    
+    setLoading(true);
+    try {
+      const compressed = await resizeAndCompressImage(selectedFile);
+      setBase64Image(compressed);
+    } catch (err) {
+      console.error('Image compression error:', err);
+      const reader = new FileReader();
+      reader.onloadend = () => setBase64Image(reader.result);
+      reader.readAsDataURL(selectedFile);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRemove = () => {
@@ -137,8 +187,28 @@ export default function UploadZone() {
           customName: customName.trim()
         }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Gagal menganalisis gambar.');
+
+      // Parse JSON safely or handle HTML error page gracefully (e.g. Vercel 504/500/413)
+      let data = null;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Server returned non-JSON response:', text);
+        
+        if (response.status === 504) {
+          throw new Error('Server Timeout (Penyebab: Gemini AI memakan waktu terlalu lama atau koneksi lambat). Silakan coba lagi.');
+        } else if (response.status === 413) {
+          throw new Error('Gambar terlalu besar untuk diunggah ke server.');
+        } else {
+          throw new Error(`Gagal menghubungi server (${response.status}). Coba lagi beberapa saat lagi.`);
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Gagal menganalisis gambar.');
+      }
 
       // Create small thumbnail for localStorage (not the full image)
       const thumbnail = await createThumbnail(base64Image);
