@@ -217,7 +217,7 @@ export default function Home() {
                   'Data diproses secara lokal untuk privasi pengguna',
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2.5">
-                    <CheckSquare className="w-4 h-4 text-gold flex-shrink-0" />
+                    <CheckSquare className="w-4 h-4 text-gold shrink-0" />
                     <span className="text-sm text-text-secondary">{item}</span>
                   </div>
                 ))}
