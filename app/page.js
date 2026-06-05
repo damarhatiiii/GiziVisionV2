@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getStats } from '@/services/nutrition.service';
 import LandingAnimation from '@/components/animations/LandingAnimation';
-import { ArrowRight, Database, Layers, CheckSquare } from 'lucide-react';
+import { ArrowRight, Database, Layers, CheckSquare, ExternalLink } from 'lucide-react';
 
 export const metadata = {
   title: 'GiziVision — Analisis Nutrisi Makanan Indonesia',
@@ -34,9 +34,9 @@ export default function Home() {
             </h1>
 
             <p className="text-base text-text-secondary leading-relaxed mb-10 max-w-lg">
-              GiziVision mendeteksi kandungan kalori, protein, lemak, dan karbohidrat 
-              dari foto makanan khas Indonesia secara otomatis menggunakan dataset gizi 
-              pangan nasional dengan 1.300+ entri data terverifikasi.
+              GiziVision mendeteksi <strong>semua makanan di piring Anda</strong> — kalori, protein, lemak, 
+              dan karbohidrat dari foto makanan khas Indonesia secara otomatis menggunakan dataset gizi 
+              pangan nasional dengan {stats.totalItems.toLocaleString('id-ID')}+ entri data.
             </p>
 
             <div className="flex items-center gap-3 mb-12">
@@ -67,7 +67,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right: Visual Preview Card */}
+          {/* Right: Visual Preview Card — Multi-item example */}
           <div className="animate-hero opacity-0 hidden lg:block">
             <div className="card p-6 space-y-4" style={{ animationDelay: '0.15s' }}>
               
@@ -75,46 +75,58 @@ export default function Home() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-success opacity-80"></div>
-                  <span className="text-xs text-text-muted font-medium">Hasil Analisis</span>
+                  <span className="text-xs text-text-muted font-medium">Hasil Analisis — 2 Item</span>
                 </div>
-                <span className="badge badge-gold">93% Match</span>
+                <span className="badge badge-gold">Multi-Deteksi</span>
               </div>
 
-              {/* Food preview block */}
-              <div className="rounded-lg bg-surface border border-border h-36 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-lg bg-brown/20 border border-brown/30 flex items-center justify-center mx-auto mb-2">
-                    <span className="text-lg">🍜</span>
+              {/* Food items preview */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-surface border border-border p-3 text-center">
+                  <div className="w-8 h-8 rounded-lg bg-brown/20 border border-brown/30 flex items-center justify-center mx-auto mb-1.5">
+                    <span className="text-sm">🍜</span>
                   </div>
-                  <p className="text-sm font-semibold text-text-primary">Bakso Sapi</p>
-                  <p className="text-xs text-text-muted">Terdeteksi dari foto</p>
+                  <p className="text-xs font-semibold text-text-primary">Bakso</p>
+                  <p className="text-[10px] text-text-muted">76 kkal</p>
+                </div>
+                <div className="rounded-lg bg-surface border border-border p-3 text-center">
+                  <div className="w-8 h-8 rounded-lg bg-gold/15 border border-gold/25 flex items-center justify-center mx-auto mb-1.5">
+                    <span className="text-sm">🍚</span>
+                  </div>
+                  <p className="text-xs font-semibold text-text-primary">Nasi Goreng</p>
+                  <p className="text-[10px] text-text-muted">276 kkal</p>
                 </div>
               </div>
 
-              {/* Nutrisi bars */}
-              <div className="space-y-3 pt-2">
-                {[
-                  { label: 'Kalori', value: '280 kkal', pct: 58 },
-                  { label: 'Protein', value: '9.2 g', pct: 28 },
-                  { label: 'Karbohidrat', value: '14.6 g', pct: 44 },
-                  { label: 'Lemak', value: '18.4 g', pct: 72 },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-xs text-text-secondary font-medium">{item.label}</span>
-                      <span className="text-xs font-semibold text-text-primary">{item.value}</span>
+              {/* Total nutrisi bars — based on Bakso (76,4.1,2.5,9.2) + Nasi Goreng (276,3.2,3.2,30.2) */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Total Nutrisi</span>
+                  <span className="text-xs font-bold text-text-primary">352 kkal</span>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Karbohidrat', value: '39.4 g', pct: 61 },
+                    { label: 'Protein', value: '7.3 g', pct: 11 },
+                    { label: 'Lemak', value: '5.7 g', pct: 9 },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-xs text-text-secondary font-medium">{item.label}</span>
+                        <span className="text-xs font-semibold text-text-primary">{item.value}</span>
+                      </div>
+                      <div className="progress-track">
+                        <div className="progress-fill-brown" style={{ width: `${item.pct}%` }}></div>
+                      </div>
                     </div>
-                    <div className="progress-track">
-                      <div className="progress-fill-brown" style={{ width: `${item.pct}%` }}></div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
               {/* Bottom tag */}
               <div className="pt-3 border-t border-border flex items-center gap-2">
                 <div className="gold-dot"></div>
-                <span className="text-xs text-text-muted">Dataset Gizi Pangan Nasional · {stats.totalItems.toLocaleString('id-ID')} entri</span>
+                <span className="text-xs text-text-muted">Dataset Kemenkes RI · {stats.totalItems.toLocaleString('id-ID')} entri</span>
               </div>
             </div>
           </div>
@@ -146,19 +158,19 @@ export default function Home() {
             {
               num: '02',
               title: 'Deteksi AI',
-              desc: 'Model computer vision mendeteksi objek makanan dan mengidentifikasi jenis pangan.',
+              desc: 'Model Gemini Vision mendeteksi semua objek makanan dan mengidentifikasi setiap jenis pangan.',
               icon: '🔍',
             },
             {
               num: '03',
               title: 'Pencocokan Data',
-              desc: 'Sistem mencocokkan hasil deteksi dengan 1.300+ entri dataset gizi pangan nasional.',
+              desc: `Sistem mencocokkan setiap hasil deteksi dengan ${stats.totalItems.toLocaleString('id-ID')}+ entri dataset gizi nasional.`,
               icon: '📊',
             },
             {
               num: '04',
               title: 'Laporan Nutrisi',
-              desc: 'Dapatkan laporan lengkap kalori, protein, lemak, karbo, dan rekomendasi pola makan.',
+              desc: 'Dapatkan laporan lengkap per-item dan total kalori, protein, lemak, karbo, serta rekomendasi.',
               icon: '📋',
             },
           ].map((step, i) => (
@@ -193,12 +205,12 @@ export default function Home() {
               <h2 className="text-2xl font-bold text-text-primary mb-4">
                 Data Gizi dari Sumber Terpercaya
               </h2>
-              <p className="text-sm text-text-secondary leading-relaxed mb-6">
-                GiziVision menggunakan Indonesian Food and Drink Nutrition Dataset, 
-                kumpulan data gizi makanan dan minuman khas Indonesia yang mencakup 
-                lebih dari 1.300 entri dengan data kalori, protein, lemak, dan karbohidrat.
+              <p className="text-sm text-text-secondary leading-relaxed mb-4">
+                GiziVision menggunakan <strong>Indonesian Food and Drink Nutrition Dataset</strong> oleh 
+                Anas Fikri Hanif, kumpulan data gizi makanan dan minuman khas Indonesia yang bersumber 
+                dari <strong>Tabel Komposisi Pangan Indonesia</strong> (panganku.org) oleh Kementerian Kesehatan RI.
               </p>
-              <div className="space-y-3">
+              <div className="space-y-3 mb-5">
                 {[
                   'Tidak menggunakan data nutrisi buatan (dummy)',
                   'Semua analisis dicocokkan dengan dataset real',
@@ -210,6 +222,15 @@ export default function Home() {
                   </div>
                 ))}
               </div>
+              <a
+                href="https://www.kaggle.com/datasets/anasfikrihanif/indonesian-food-and-drink-nutrition-dataset"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-xs text-gold hover:underline font-semibold"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Lihat Dataset di Kaggle
+              </a>
             </div>
 
             <div className="animate-features opacity-0 grid grid-cols-2 gap-4">
@@ -217,7 +238,7 @@ export default function Home() {
                 { icon: <Database className="w-5 h-5" />, label: 'Total Entri Pangan', value: stats.totalItems.toLocaleString('id-ID') },
                 { icon: <Layers className="w-5 h-5" />, label: 'Kategori Klaster', value: stats.totalCategories },
                 { icon: <CheckSquare className="w-5 h-5" />, label: 'Data Poin Nutrisi', value: stats.totalDataPoints.toLocaleString('id-ID') },
-                { icon: <ArrowRight className="w-5 h-5" />, label: 'Format Dataset', value: 'CSV · Local' },
+                { icon: <ArrowRight className="w-5 h-5" />, label: 'Sumber Data', value: 'Kemenkes RI' },
               ].map((item, i) => (
                 <div key={i} className="card p-5">
                   <div className="text-text-muted mb-3">{item.icon}</div>

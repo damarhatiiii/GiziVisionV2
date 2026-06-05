@@ -43,16 +43,46 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  const handleSeedSimulation = () => {
-    const mockFoods = [
-      { name: 'Bakso', calories: 280, proteins: 9.2, fat: 18.4, carbohydrate: 14.6 },
-      { name: 'Nasi Goreng', calories: 250, proteins: 4.8, fat: 9, carbohydrate: 38 },
-      { name: 'Sate Ayam', calories: 225, proteins: 15.6, fat: 12.1, carbohydrate: 8.5 },
-      { name: 'Rendang', calories: 327, proteins: 22.6, fat: 20.5, carbohydrate: 7.8 },
-      { name: 'Gado-Gado', calories: 295, proteins: 11.2, fat: 14.5, carbohydrate: 31.2 },
-      { name: 'Tempe Goreng', calories: 336, proteins: 20, fat: 23, carbohydrate: 18 },
+  const handleSeedSimulation = async () => {
+    // Fetch real nutrition data from the API to ensure accuracy
+    const mockFoodNames = [
+      'Bakso', 'Nasi Goreng', 'Sate ayam', 'Rendang',
+      'Gado-gado', 'Tempe murni goreng'
     ];
+
     if (typeof window === 'undefined') return;
+
+    // Try to get real data from the search API
+    const mockFoods = [];
+    for (const name of mockFoodNames) {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(name)}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const item = data[0];
+          mockFoods.push({
+            name: item.name,
+            calories: Number(item.calories) || 0,
+            proteins: Number(item.proteins) || 0,
+            fat: Number(item.fat) || 0,
+            carbohydrate: Number(item.carbohydrate) || 0,
+          });
+        }
+      } catch {
+        // Ignore errors, skip this food
+      }
+    }
+
+    // Fallback if API calls failed
+    if (mockFoods.length === 0) {
+      mockFoods.push(
+        { name: 'Bakso', calories: 76, proteins: 4.1, fat: 2.5, carbohydrate: 9.2 },
+        { name: 'Nasi Goreng', calories: 276, proteins: 3.2, fat: 3.2, carbohydrate: 30.2 },
+        { name: 'Mie Goreng', calories: 468, proteins: 7.6, fat: 20.4, carbohydrate: 62.4 },
+        { name: 'Tempe murni goreng', calories: 336, proteins: 20, fat: 23, carbohydrate: 18 },
+      );
+    }
+
     localStorage.removeItem('gizivision_history');
     const now = new Date();
     const list = [];
@@ -62,9 +92,14 @@ export default function DashboardPage() {
         id: (Date.now() - i * 1000).toString(),
         timestamp: new Date(now.getTime() - i * 14 * 60 * 60 * 1000).toISOString(),
         foodName: food.name,
-        confidence: Math.round((0.85 + Math.random() * 0.14) * 100) / 100,
-        nutrition: food,
-        image: '',
+        items: [{
+          name: food.name,
+          confidence: Math.round((0.85 + Math.random() * 0.14) * 100) / 100,
+          source: 'dataset',
+          nutrition: food,
+        }],
+        totalNutrition: food,
+        image: null,
       });
     }
     localStorage.setItem('gizivision_history', JSON.stringify(list));
@@ -118,7 +153,7 @@ export default function DashboardPage() {
       {/* Empty state */}
       {totalScans === 0 ? (
         <div className="card p-14 text-center max-w-lg mx-auto mt-10">
-          <div className="w-14 h-14 rounded-xl bg-card-flat border border-border flex items-center justify-center mx-auto mb-5">
+          <div className="w-14 h-14 rounded-xl bg-card border border-border flex items-center justify-center mx-auto mb-5">
             <TrendingUp className="w-7 h-7 text-text-muted" />
           </div>
           <h2 className="text-xl font-bold text-text-primary mb-2">Belum Ada Data</h2>

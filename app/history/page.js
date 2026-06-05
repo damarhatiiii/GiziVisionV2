@@ -26,9 +26,16 @@ export default function HistoryPage() {
     }
   };
 
-  const filtered = history.filter(item =>
-    item.foodName?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Search across all item names in a scan
+  const filtered = history.filter(scan => {
+    const query = searchQuery.toLowerCase();
+    // Support new format (items array)
+    if (scan.items && Array.isArray(scan.items)) {
+      return scan.items.some(item => item.name?.toLowerCase().includes(query));
+    }
+    // Support old format (foodName)
+    return scan.foodName?.toLowerCase().includes(query);
+  });
 
   if (loading) {
     return (
@@ -75,7 +82,7 @@ export default function HistoryPage() {
       {/* Empty state */}
       {history.length === 0 ? (
         <div className="card p-14 text-center max-w-lg mx-auto mt-6">
-          <div className="w-14 h-14 rounded-xl bg-card-flat border border-border flex items-center justify-center mx-auto mb-5">
+          <div className="w-14 h-14 rounded-xl bg-card border border-border flex items-center justify-center mx-auto mb-5">
             <Clock className="w-7 h-7 text-text-muted" />
           </div>
           <h2 className="text-xl font-bold text-text-primary mb-2">Riwayat Kosong</h2>
@@ -112,25 +119,39 @@ export default function HistoryPage() {
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((item) => {
-                      const nut = item.nutrition || {};
-                      const conf = Math.round(item.confidence * 100);
+                    filtered.map((scan) => {
+                      // Support both old and new format
+                      const nut = scan.totalNutrition || scan.nutrition || {};
+                      const items = scan.items || [];
+                      const itemCount = items.filter(i => i.nutrition).length;
+                      const displayName = scan.foodName || items[0]?.name || 'Tidak Dikenal';
+                      
+                      // Calculate average confidence
+                      const avgConf = items.length > 0
+                        ? Math.round(items.reduce((s, i) => s + (i.confidence || 0), 0) / items.length * 100)
+                        : Math.round((scan.confidence || 0) * 100);
+
                       return (
-                        <tr key={item.id}>
+                        <tr key={scan.id}>
                           {/* Food name + image */}
                           <td>
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-lg overflow-hidden bg-bg border border-border flex-shrink-0">
-                                {item.image ? (
+                                {scan.image ? (
                                   /* eslint-disable-next-line @next/next/no-img-element */
-                                  <img src={item.image} alt={item.foodName} className="w-full h-full object-cover" />
+                                  <img src={scan.image} alt={displayName} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-text-disabled text-xs">?</div>
                                 )}
                               </div>
                               <div>
-                                <p className="text-sm font-semibold text-text-primary">{item.foodName}</p>
-                                <p className="text-[10px] text-text-muted font-mono">#{item.id.slice(-6)}</p>
+                                <p className="text-sm font-semibold text-text-primary">{displayName}</p>
+                                {itemCount > 1 && (
+                                  <p className="text-[10px] text-gold font-medium">+{itemCount - 1} item lain</p>
+                                )}
+                                {itemCount <= 1 && (
+                                  <p className="text-[10px] text-text-muted font-mono">#{scan.id.slice(-6)}</p>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -138,17 +159,17 @@ export default function HistoryPage() {
                           {/* Date */}
                           <td>
                             <p className="text-sm text-text-secondary">
-                              {new Date(item.timestamp).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {new Date(scan.timestamp).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </p>
                             <p className="text-xs text-text-muted">
-                              {new Date(item.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(scan.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </td>
 
                           {/* Confidence */}
                           <td className="text-center">
-                            <span className={`badge ${conf >= 80 ? 'badge-success' : 'badge-warning'}`}>
-                              {conf}%
+                            <span className={`badge ${avgConf >= 80 ? 'badge-success' : 'badge-warning'}`}>
+                              {avgConf}%
                             </span>
                           </td>
 
@@ -177,14 +198,14 @@ export default function HistoryPage() {
                           <td>
                             <div className="flex items-center justify-center gap-1.5">
                               <Link
-                                href={`/analysis?id=${item.id}`}
+                                href={`/analysis?id=${scan.id}`}
                                 title="Lihat Hasil"
                                 className="w-7 h-7 rounded-md border border-border bg-card hover:border-gold/40 hover:text-gold flex items-center justify-center text-text-muted transition-all"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </Link>
                               <button
-                                onClick={(e) => handleDelete(item.id, e)}
+                                onClick={(e) => handleDelete(scan.id, e)}
                                 title="Hapus"
                                 className="w-7 h-7 rounded-md border border-border bg-card hover:border-danger/40 hover:text-danger flex items-center justify-center text-text-muted transition-all"
                               >

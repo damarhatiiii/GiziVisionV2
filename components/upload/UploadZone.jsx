@@ -1,9 +1,30 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { addHistory } from '@/services/history.service';
-import { UploadCloud, X, Sparkles, Loader2, ImageIcon, AlertTriangle } from 'lucide-react';
+import { UploadCloud, X, Sparkles, Loader2, ImageIcon, AlertTriangle, Settings, Check, Key } from 'lucide-react';
+
+/**
+ * Compress an image to a small thumbnail for localStorage storage.
+ * Returns a small base64 JPEG string.
+ */
+function createThumbnail(base64Image, maxWidth = 120, quality = 0.5) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ratio = maxWidth / img.width;
+      canvas.width = maxWidth;
+      canvas.height = img.height * ratio;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(null);
+    img.src = base64Image;
+  });
+}
 
 export default function UploadZone() {
   const [dragActive, setDragActive] = useState(false);
@@ -13,8 +34,32 @@ export default function UploadZone() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Gemini Key and Custom Food Name
+  const [customName, setCustomName] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasServerKey, setHasServerKey] = useState(false);
+
   const fileInputRef = useRef(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedKey = localStorage.getItem('gizivision_gemini_key') || '';
+      setApiKeyInput(storedKey);
+      setHasApiKey(!!storedKey);
+    }
+
+    fetch('/api/analyze')
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.hasServerKey === 'boolean') {
+          setHasServerKey(data.hasServerKey);
+        }
+      })
+      .catch(err => console.error('Gagal mengecek status API Key server:', err));
+  }, []);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -52,7 +97,25 @@ export default function UploadZone() {
     setPreviewUrl('');
     setBase64Image('');
     setError('');
+    setCustomName('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSaveApiKey = () => {
+    const trimmed = apiKeyInput.trim();
+    if (trimmed) {
+      localStorage.setItem('gizivision_gemini_key', trimmed);
+      setHasApiKey(true);
+      setShowSettings(false);
+    } else {
+      handleClearApiKey();
+    }
+  };
+
+  const handleClearApiKey = () => {
+    localStorage.removeItem('gizivision_gemini_key');
+    setApiKeyInput('');
+    setHasApiKey(false);
   };
 
   const handleAnalyze = async () => {
@@ -60,19 +123,32 @@ export default function UploadZone() {
     setLoading(true);
     setError('');
     try {
+      const userApiKey = localStorage.getItem('gizivision_gemini_key') || '';
       const response = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64Image, fileName: file.name }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-gemini-key': userApiKey
+        },
+        body: JSON.stringify({ 
+          image: base64Image, 
+          fileName: file.name,
+          customName: customName.trim()
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Gagal menganalisis gambar.');
+
+      // Create small thumbnail for localStorage (not the full image)
+      const thumbnail = await createThumbnail(base64Image);
+
+      // Save to history with new multi-item format
       const savedScan = addHistory({
-        name: data.name,
-        confidence: data.confidence,
-        nutrition: data.nutrition,
-        image: base64Image,
+        items: data.items || [],
+        totalNutrition: data.totalNutrition || { calories: 0, proteins: 0, fat: 0, carbohydrate: 0 },
+        imagePreview: thumbnail,
       });
+
       if (savedScan) router.push(`/analysis?id=${savedScan.id}`);
       else throw new Error('Gagal menyimpan hasil analisis.');
     } catch (err) {
@@ -82,7 +158,81 @@ export default function UploadZone() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto space-y-4 animate-fade-in">
+
+      {/* ── API STATUS BAR ── */}
+      <div className="flex items-center justify-between bg-surface border border-border rounded-xl p-3.5 transition-all">
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-2.5 w-2.5">
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${(hasServerKey || hasApiKey) ? 'bg-success' : 'bg-warning'}`}></span>
+            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${(hasServerKey || hasApiKey) ? 'bg-success' : 'bg-warning'}`}></span>
+          </div>
+          <div className="text-left">
+            <p className="text-xs font-semibold text-text-primary">
+              {(hasServerKey || hasApiKey) ? 'Mode AI Aktif (Gemini)' : 'Mode Simulasi (Mock)'}
+            </p>
+            <p className="text-[10px] text-text-muted">
+              {hasServerKey 
+                ? 'API Key terkonfigurasi di server. Siap menganalisis gambar riil.' 
+                : hasApiKey 
+                  ? 'API Key terkonfigurasi di browser Anda. Siap menganalisis gambar riil.' 
+                  : 'Menggunakan kecocokan nama file & fallback acak.'
+              }
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className={`
+            p-2 rounded-lg border border-border flex items-center justify-center gap-1.5 text-xs font-medium transition-all
+            ${showSettings ? 'bg-card text-gold border-gold/45 shadow-[0_0_8px_rgba(212,175,55,0.1)]' : 'bg-card text-text-secondary hover:text-text-primary hover:border-text-muted'}
+          `}
+        >
+          <Settings className="w-3.5 h-3.5" />
+          Pengaturan Key
+        </button>
+      </div>
+
+      {/* ── SETTINGS COLLAPSIBLE PANEL ── */}
+      {showSettings && (
+        <div className="card p-5 space-y-3.5 text-left border-gold/20 shadow-lg">
+          <div className="flex items-center gap-2">
+            <Key className="w-4 h-4 text-gold" />
+            <p className="text-xs font-bold uppercase tracking-widest text-gold">Konfigurasi Gemini API</p>
+          </div>
+          <p className="text-xs text-text-secondary leading-relaxed">
+            {hasServerKey 
+              ? 'API Key Gemini sudah terkonfigurasi di sisi server (.env.local). Anda tidak perlu memasukkan key secara manual, kecuali jika ingin menimpa (override) dengan key Anda sendiri.'
+              : 'Untuk analisis foto makanan yang akurat dan deteksi wajah otomatis, masukkan Gemini API Key Anda. Key disimpan dengan aman di penyimpanan lokal browser Anda. Dapatkan Key secara gratis di Google AI Studio.'
+            }
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              placeholder={hasServerKey ? "Menggunakan key dari server (tersembunyi)" : "Masukkan AIzaSy..."}
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              className="input-premium font-mono text-xs flex-1"
+            />
+            <button
+              onClick={handleSaveApiKey}
+              className="btn-primary py-2 px-4 text-xs font-semibold"
+            >
+              <Check className="w-3.5 h-3.5" /> Simpan
+            </button>
+          </div>
+          {hasApiKey && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleClearApiKey}
+                className="text-[10px] text-danger hover:underline font-medium transition-all"
+              >
+                Hapus API Key yang Tersimpan di Browser
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {!previewUrl ? (
         /* ── DROPZONE ── */
@@ -97,7 +247,7 @@ export default function UploadZone() {
             flex flex-col items-center justify-center gap-4 cursor-pointer
             transition-all duration-200
             ${dragActive
-              ? 'border-gold bg-gold/5'
+              ? 'border-gold bg-gold/5 shadow-[0_0_15px_rgba(212,175,55,0.05)]'
               : 'border-border hover:border-brown hover:bg-surface/50'
             }
           `}
@@ -124,8 +274,7 @@ export default function UploadZone() {
             </p>
           </div>
           <div className="text-xs text-text-disabled bg-card border border-border px-3 py-1.5 rounded-md">
-            Tip: Beri nama file seperti{' '}
-            <code className="text-gold font-mono">bakso.jpg</code> untuk deteksi lebih akurat
+            AI akan mendeteksi semua makanan yang terlihat di foto
           </div>
         </div>
 
@@ -156,7 +305,7 @@ export default function UploadZone() {
 
           {/* File info row */}
           <div className="flex items-center justify-between bg-surface border border-border rounded-lg px-4 py-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 text-left">
               <ImageIcon className="w-4 h-4 text-text-muted flex-shrink-0" />
               <div>
                 <p className="text-xs font-semibold text-text-primary truncate max-w-xs">{file?.name}</p>
@@ -171,6 +320,25 @@ export default function UploadZone() {
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
+          </div>
+
+          {/* Custom Name Hint Input */}
+          <div className="space-y-1.5 text-left">
+            <label htmlFor="custom-food-name" className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              Nama Makanan (Opsional)
+            </label>
+            <input
+              id="custom-food-name"
+              type="text"
+              placeholder="Contoh: Nasi Goreng, Telur Ceplok, Kerupuk (pisahkan dengan koma)"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              disabled={loading}
+              className="input-premium text-xs"
+            />
+            <p className="text-[9px] text-text-disabled leading-relaxed">
+              * Sebutkan semua makanan yang terlihat, pisahkan dengan koma untuk deteksi lebih akurat.
+            </p>
           </div>
 
           {/* Analyze button */}
@@ -189,7 +357,7 @@ export default function UploadZone() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Menganalisis kandungan nutrisi...
+                Menganalisis semua makanan...
               </>
             ) : (
               <>
@@ -203,7 +371,7 @@ export default function UploadZone() {
 
       {/* Error */}
       {error && (
-        <div className="mt-4 flex items-start gap-3 p-4 rounded-lg bg-danger/5 border border-danger/20 text-danger text-sm">
+        <div className="mt-4 flex items-start gap-3 p-4 rounded-lg bg-danger/5 border border-danger/20 text-danger text-sm text-left animate-fade-in">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold mb-0.5">Analisis Gagal</p>

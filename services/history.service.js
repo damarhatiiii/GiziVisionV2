@@ -1,7 +1,8 @@
 /**
  * History Service
  * Handles user scan history saving, retrieval, and statistics calculation.
- * Operates primarily on client side (localStorage).
+ * Now supports multi-food items per scan.
+ * Optimized: does NOT store base64 images to avoid localStorage overflow.
  */
 
 export function getHistory() {
@@ -15,24 +16,65 @@ export function getHistory() {
   }
 }
 
-export function addHistory(scanItem) {
+/**
+ * Add a new scan to history.
+ * @param {Object} scanData
+ * @param {Array} scanData.items - Array of { name, confidence, source, nutrition }
+ * @param {Object} scanData.totalNutrition - { calories, proteins, fat, carbohydrate }
+ * @param {string} scanData.imagePreview - Small preview URL (NOT full base64, to save space)
+ */
+export function addHistory(scanData) {
   if (typeof window === 'undefined') return null;
   try {
     const history = getHistory();
+
+    // Create a small thumbnail from the image to save localStorage space
+    // We only store a very small version or skip entirely
+    let thumbnail = null;
+    if (scanData.imagePreview) {
+      thumbnail = scanData.imagePreview; // UploadZone will provide a compressed thumbnail
+    }
+
     const newScan = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
-      foodName: scanItem.name,
-      confidence: scanItem.confidence,
-      nutrition: scanItem.nutrition,
-      // Store the image path (from dataset) or user uploaded base64
-      image: scanItem.image || null,
+      // Multi-food: store all items
+      items: (scanData.items || []).map(item => ({
+        name: item.name,
+        confidence: item.confidence,
+        source: item.source || 'dataset',
+        nutrition: item.nutrition
+      })),
+      totalNutrition: scanData.totalNutrition || { calories: 0, proteins: 0, fat: 0, carbohydrate: 0 },
+      // Primary food name for display (first item)
+      foodName: scanData.items?.[0]?.name || 'Tidak Dikenal',
+      // Small thumbnail only
+      image: thumbnail,
     };
-    history.unshift(newScan); // Store newest first
+
+    history.unshift(newScan);
+
+    // Safety: limit history to 50 entries to prevent localStorage overflow
+    if (history.length > 50) {
+      history.length = 50;
+    }
+
     localStorage.setItem('gizivision_history', JSON.stringify(history));
     return newScan;
   } catch (error) {
     console.error('Error writing to localStorage history:', error);
+    // If quota exceeded, try removing oldest entries
+    if (error.name === 'QuotaExceededError' || error.code === 22) {
+      try {
+        const history = getHistory();
+        // Remove oldest half
+        const trimmed = history.slice(0, Math.floor(history.length / 2));
+        localStorage.setItem('gizivision_history', JSON.stringify(trimmed));
+        console.warn('localStorage was full, trimmed history to', trimmed.length, 'entries');
+      } catch (e2) {
+        console.error('Failed to trim history:', e2);
+      }
+    }
     return null;
   }
 }
@@ -57,6 +99,9 @@ export function clearHistory() {
   }
 }
 
+/**
+ * Get dashboard statistics — compatible with both old and new history format.
+ */
 export function getDashboardStats() {
   const history = getHistory();
   const totalScans = history.length;
@@ -70,9 +115,9 @@ export function getDashboardStats() {
       totalMacros: { protein: 0, fat: 0, carbohydrate: 0 },
       chartCalories: [],
       chartMacros: [
-        { name: 'Karbohidrat', value: 0, color: '#C9A227' },
-        { name: 'Protein',     value: 0, color: '#6F4E37' },
-        { name: 'Lemak',       value: 0, color: '#4A4A4A' }
+        { name: 'Karbohidrat', value: 0, color: '#C9A227', grams: 0 },
+        { name: 'Protein',     value: 0, color: '#6F4E37', grams: 0 },
+        { name: 'Lemak',       value: 0, color: '#4A4A4A', grams: 0 }
       ],
       popularFoodsList: []
     };
@@ -84,23 +129,29 @@ export function getDashboardStats() {
   let totalCarbohydrate = 0;
   const foodCounts = {};
 
-  history.forEach(item => {
-    const nut = item.nutrition || {};
+  history.forEach(scan => {
+    // Support both old format (scan.nutrition) and new format (scan.totalNutrition)
+    const nut = scan.totalNutrition || scan.nutrition || {};
     totalCalories += Number(nut.calories) || 0;
     totalProtein += Number(nut.proteins) || 0;
     totalFat += Number(nut.fat) || 0;
     totalCarbohydrate += Number(nut.carbohydrate) || 0;
 
-    const name = item.foodName;
-    if (name) {
-      foodCounts[name] = (foodCounts[name] || 0) + 1;
+    // Count food names — for new format, count each item separately
+    if (scan.items && Array.isArray(scan.items)) {
+      scan.items.forEach(item => {
+        if (item.name) {
+          foodCounts[item.name] = (foodCounts[item.name] || 0) + 1;
+        }
+      });
+    } else if (scan.foodName) {
+      foodCounts[scan.foodName] = (foodCounts[scan.foodName] || 0) + 1;
     }
   });
 
-  // Calculate average calories per scan
   const avgCalories = Math.round(totalCalories / totalScans);
 
-  // Find most frequent food scanned
+  // Find most frequent food
   let popularFood = 'Belum ada data';
   let popularCount = 0;
   Object.entries(foodCounts).forEach(([name, count]) => {
@@ -110,11 +161,10 @@ export function getDashboardStats() {
     }
   });
 
-  // Group calorie intake daily (last 7 active days) for Area/Line Chart
+  // Group daily data (last 7 active days)
   const dailyData = {};
-  // Reverse to process chronologically
-  [...history].reverse().forEach(item => {
-    const dateObj = new Date(item.timestamp);
+  [...history].reverse().forEach(scan => {
+    const dateObj = new Date(scan.timestamp);
     const dateStr = dateObj.toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short'
@@ -122,16 +172,16 @@ export function getDashboardStats() {
     if (!dailyData[dateStr]) {
       dailyData[dateStr] = { date: dateStr, Kalori: 0, Protein: 0, Lemak: 0, Karbo: 0 };
     }
-    const nut = item.nutrition || {};
+    const nut = scan.totalNutrition || scan.nutrition || {};
     dailyData[dateStr].Kalori += Math.round(Number(nut.calories) || 0);
     dailyData[dateStr].Protein += Math.round(Number(nut.proteins) || 0);
     dailyData[dateStr].Lemak += Math.round(Number(nut.fat) || 0);
     dailyData[dateStr].Karbo += Math.round(Number(nut.carbohydrate) || 0);
   });
 
-  const chartCalories = Object.values(dailyData).slice(-7); // take last 7 unique days
+  const chartCalories = Object.values(dailyData).slice(-7);
 
-  // Prepare macro pie chart data
+  // Macro pie chart
   const totalMacrosVal = totalProtein + totalFat + totalCarbohydrate;
   const chartMacros = [
     {
@@ -154,7 +204,7 @@ export function getDashboardStats() {
     }
   ];
 
-  // Top 5 popular foods for Bar Chart
+  // Top 5 popular foods
   const popularFoodsList = Object.entries(foodCounts)
     .map(([name, count]) => ({ name, Jumlah: count }))
     .sort((a, b) => b.Jumlah - a.Jumlah)

@@ -30,7 +30,7 @@ export function searchFoodByName(name) {
   const query = name.toLowerCase().trim();
   
   // Try to find an exact match first
-  const exactMatch = data.find(item => item.name && item.name.toLowerCase() === query);
+  const exactMatch = data.find(item => item.name && item.name.toLowerCase().trim() === query);
   if (exactMatch) return [exactMatch];
 
   // Otherwise, match items that contain the query
@@ -41,7 +41,7 @@ export function getFoodItemByNameExact(name) {
   const data = loadNutritionData();
   if (!name) return null;
   const query = name.toLowerCase().trim();
-  return data.find(item => item.name && item.name.toLowerCase() === query) || null;
+  return data.find(item => item.name && item.name.toLowerCase().trim() === query) || null;
 }
 
 export function getStats() {

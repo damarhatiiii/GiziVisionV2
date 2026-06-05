@@ -1,7 +1,8 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Link from 'next/link';
-import { LayoutDashboard, History, Upload, Microscope } from 'lucide-react';
+import { Upload, Microscope, ExternalLink } from 'lucide-react';
+import QrCodeWidget from '@/components/QrCodeWidget';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -39,6 +40,7 @@ export default function RootLayout({ children }) {
 
             {/* CTA */}
             <div className="flex items-center gap-3">
+              <QrCodeWidget />
               <Link
                 href="/upload"
                 className="btn-primary text-sm py-2 px-3 sm:px-4"
@@ -51,6 +53,7 @@ export default function RootLayout({ children }) {
           </nav>
         </header>
 
+
         {/* ── PAGE CONTENT ── */}
         <main className="flex-1 flex flex-col">
           {children}
@@ -59,10 +62,24 @@ export default function RootLayout({ children }) {
         {/* ── FOOTER ── */}
         <footer className="border-t border-border py-8 mt-auto">
           <div className="container mx-auto px-6 max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-text-muted">GiziVision</span>
-              <span className="text-text-disabled">·</span>
-              <span className="text-xs text-text-muted">Platform Analisis Nutrisi Pangan Indonesia</span>
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-muted">GiziVision</span>
+                <span className="text-text-disabled">·</span>
+                <span className="text-xs text-text-muted">Platform Analisis Nutrisi Pangan Indonesia</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-text-disabled hidden sm:inline">·</span>
+                <a
+                  href="https://www.kaggle.com/datasets/anasfikrihanif/indonesian-food-and-drink-nutrition-dataset"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-gold/70 hover:text-gold transition-colors"
+                >
+                  <ExternalLink className="w-2.5 h-2.5" />
+                  Dataset: Kaggle · Anas Fikri Hanif
+                </a>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <Link href="/dashboard" className="text-xs text-text-muted hover:text-text-secondary transition-colors">Dashboard</Link>
