@@ -30,39 +30,39 @@ function createThumbnail(base64Image, maxWidth = 120, quality = 0.5) {
  * Resize and compress image to prevent Vercel 413 Payload Too Large / 504 Timeout errors.
  * Returns compressed base64 JPEG.
  */
-function resizeAndCompressImage(file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) {
+function resizeAndCompressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.6) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
 
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
         }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = () => reject(new Error('Gagal memproses gambar.'));
-      img.src = e.target.result;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
     };
-    reader.onerror = () => reject(new Error('Gagal membaca file.'));
-    reader.readAsDataURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Gagal memproses gambar.'));
+    };
+    img.src = objectUrl;
   });
 }
 
@@ -84,6 +84,12 @@ export default function UploadZone() {
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   const router = useRouter();
+
+  const getCompressedSize = () => {
+    if (!base64Image) return 0;
+    const base64Content = base64Image.split(',')[1] || '';
+    return (base64Content.length * 0.75) / 1024; // in KB
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -417,7 +423,22 @@ export default function UploadZone() {
               <ImageIcon className="w-4 h-4 text-text-muted flex-shrink-0" />
               <div>
                 <p className="text-xs font-semibold text-text-primary truncate max-w-xs">{file?.name}</p>
-                <p className="text-[10px] text-text-muted">{(file?.size / 1024 / 1024).toFixed(2)} MB</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 text-[10px] text-text-muted">
+                  <span>Asli: {(file?.size / 1024 / 1024).toFixed(2)} MB</span>
+                  {base64Image && (
+                    <>
+                      <span className="hidden sm:inline text-text-disabled">·</span>
+                      <span className="text-success font-semibold flex items-center gap-1">
+                        Kompresi: {getCompressedSize().toFixed(1)} KB
+                        {file?.size > 0 && (
+                          <span className="text-success/90 font-medium bg-success/10 px-1.5 py-0.2 rounded">
+                            (hemat {(((file.size - (getCompressedSize() * 1024)) / file.size) * 100).toFixed(0)}%)
+                          </span>
+                        )}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             {!loading && (
