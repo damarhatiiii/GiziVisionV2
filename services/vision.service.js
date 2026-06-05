@@ -15,13 +15,42 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * @returns {Promise<{isFood: boolean, items: Array<{name: string, confidence: number, nutrition?: any}>}>}
  */
 export async function analyzeImage(base64Image, fileName = '', userApiKey = '', customName = '') {
-  const apiKey = process.env.GEMINI_API_KEY || userApiKey;
+  // Collect all potential API keys
+  const keys = [];
+  
+  if (process.env.GEMINI_API_KEY) keys.push(process.env.GEMINI_API_KEY);
+  if (process.env.GEMINI_KEY_1) keys.push(process.env.GEMINI_KEY_1);
+  if (process.env.GEMINI_KEY_2) keys.push(process.env.GEMINI_KEY_2);
+  if (process.env.GEMINI_KEY_3) keys.push(process.env.GEMINI_KEY_3);
+  if (userApiKey) keys.push(userApiKey);
 
-  if (!apiKey) {
+  // Filter unique keys in case they are duplicated
+  const uniqueKeys = Array.from(new Set(keys)).filter(Boolean);
+
+  if (uniqueKeys.length === 0) {
+    console.log('No Gemini API Keys configured. Falling back to Mock simulation mode.');
     return analyzeImageMock(base64Image, fileName, customName);
   }
 
-  return analyzeImageWithGemini(base64Image, apiKey, customName);
+  let lastError = null;
+
+  // Try each key sequentially in rotation pool
+  for (let i = 0; i < uniqueKeys.length; i++) {
+    const key = uniqueKeys[i];
+    const keyShort = key.slice(0, 8) + '...';
+    try {
+      console.log(`[Key Pool] Attempting food analysis with API Key index ${i} (${keyShort})`);
+      const result = await analyzeImageWithGemini(base64Image, key, customName);
+      console.log(`[Key Pool] Analysis successfully completed using API Key index ${i}`);
+      return result;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[Key Pool] API Key index ${i} (${keyShort}) failed:`, err.message);
+      // If it's the last key in the list, loop finishes and we throw lastError
+    }
+  }
+
+  throw lastError || new Error('Semua API Key Gemini di server gagal menganalisis gambar.');
 }
 
 /**

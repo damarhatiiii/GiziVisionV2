@@ -155,7 +155,13 @@ export async function POST(request) {
 }
 
 export async function GET() {
+  const hasKey = !!(
+    process.env.GEMINI_API_KEY ||
+    process.env.GEMINI_KEY_1 ||
+    process.env.GEMINI_KEY_2 ||
+    process.env.GEMINI_KEY_3
+  );
   return NextResponse.json({
-    hasServerKey: !!process.env.GEMINI_API_KEY
+    hasServerKey: hasKey
   });
 }
