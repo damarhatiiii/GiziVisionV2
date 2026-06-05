@@ -1,103 +1,235 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { getStats } from '@/services/nutrition.service';
+import LandingAnimation from '@/components/animations/LandingAnimation';
+import { ArrowRight, Database, Layers, CheckSquare } from 'lucide-react';
+
+export const metadata = {
+  title: 'GiziVision — Analisis Nutrisi Makanan Indonesia',
+  description: 'Platform analisis kandungan nutrisi makanan Indonesia berbasis computer vision dan dataset gizi pangan nasional.',
+};
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const stats = getStats();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  return (
+    <div className="flex-1 flex flex-col">
+      <LandingAnimation />
+
+      {/* ── HERO ── */}
+      <section className="container mx-auto px-6 max-w-7xl pt-20 pb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+
+          {/* Left: Content */}
+          <div className="animate-hero opacity-0">
+            
+            <div className="flex items-center gap-2 mb-8">
+              <div className="gold-line"></div>
+              <span className="section-label">Computer Vision · Gizi Pangan</span>
+            </div>
+
+            <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-text-primary leading-[1.15] mb-6">
+              Analisis Nutrisi<br />
+              Makanan Indonesia<br />
+              <span className="text-gold">Berbasis AI</span>
+            </h1>
+
+            <p className="text-base text-text-secondary leading-relaxed mb-10 max-w-lg">
+              GiziVision mendeteksi kandungan kalori, protein, lemak, dan karbohidrat 
+              dari foto makanan khas Indonesia secara otomatis menggunakan dataset gizi 
+              pangan nasional dengan 1.300+ entri data terverifikasi.
+            </p>
+
+            <div className="flex items-center gap-3 mb-12">
+              <Link href="/upload" className="btn-primary">
+                Mulai Analisis
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link href="/dashboard" className="btn-secondary">
+                Lihat Dashboard
+              </Link>
+            </div>
+
+            <div className="flex items-center gap-6 pt-8 border-t border-border">
+              <div>
+                <p className="stat-value text-xl">{stats.totalItems.toLocaleString('id-ID')}</p>
+                <p className="text-xs text-text-muted mt-0.5">Entri pangan</p>
+              </div>
+              <div className="w-px h-8 bg-border"></div>
+              <div>
+                <p className="stat-value text-xl">{stats.totalDataPoints.toLocaleString('id-ID')}</p>
+                <p className="text-xs text-text-muted mt-0.5">Data poin nutrisi</p>
+              </div>
+              <div className="w-px h-8 bg-border"></div>
+              <div>
+                <p className="stat-value text-xl">{stats.totalCategories}</p>
+                <p className="text-xs text-text-muted mt-0.5">Klaster kategori</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Visual Preview Card */}
+          <div className="animate-hero opacity-0 hidden lg:block">
+            <div className="card p-6 space-y-4" style={{ animationDelay: '0.15s' }}>
+              
+              {/* Mock header */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-success opacity-80"></div>
+                  <span className="text-xs text-text-muted font-medium">Hasil Analisis</span>
+                </div>
+                <span className="badge badge-gold">93% Match</span>
+              </div>
+
+              {/* Food preview block */}
+              <div className="rounded-lg bg-surface border border-border h-36 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-10 h-10 rounded-lg bg-brown/20 border border-brown/30 flex items-center justify-center mx-auto mb-2">
+                    <span className="text-lg">🍜</span>
+                  </div>
+                  <p className="text-sm font-semibold text-text-primary">Bakso Sapi</p>
+                  <p className="text-xs text-text-muted">Terdeteksi dari foto</p>
+                </div>
+              </div>
+
+              {/* Nutrisi bars */}
+              <div className="space-y-3 pt-2">
+                {[
+                  { label: 'Kalori', value: '280 kkal', pct: 58 },
+                  { label: 'Protein', value: '9.2 g', pct: 28 },
+                  { label: 'Karbohidrat', value: '14.6 g', pct: 44 },
+                  { label: 'Lemak', value: '18.4 g', pct: 72 },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-xs text-text-secondary font-medium">{item.label}</span>
+                      <span className="text-xs font-semibold text-text-primary">{item.value}</span>
+                    </div>
+                    <div className="progress-track">
+                      <div className="progress-fill-brown" style={{ width: `${item.pct}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bottom tag */}
+              <div className="pt-3 border-t border-border flex items-center gap-2">
+                <div className="gold-dot"></div>
+                <span className="text-xs text-text-muted">Dataset Gizi Pangan Nasional · {stats.totalItems.toLocaleString('id-ID')} entri</span>
+              </div>
+            </div>
+          </div>
+
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* ── DIVIDER ── */}
+      <div className="divider"></div>
+
+      {/* ── HOW IT WORKS ── */}
+      <section className="container mx-auto px-6 max-w-7xl py-20">
+        <div className="animate-features opacity-0 mb-12">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="gold-line"></div>
+            <span className="section-label">Cara Kerja</span>
+          </div>
+          <h2 className="text-2xl font-bold text-text-primary">Alur Analisis Nutrisi</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden">
+          {[
+            {
+              num: '01',
+              title: 'Unggah Foto',
+              desc: 'Unggah foto makanan khas Indonesia ke dalam sistem melalui antarmuka drag-and-drop.',
+              icon: '📷',
+            },
+            {
+              num: '02',
+              title: 'Deteksi AI',
+              desc: 'Model computer vision mendeteksi objek makanan dan mengidentifikasi jenis pangan.',
+              icon: '🔍',
+            },
+            {
+              num: '03',
+              title: 'Pencocokan Data',
+              desc: 'Sistem mencocokkan hasil deteksi dengan 1.300+ entri dataset gizi pangan nasional.',
+              icon: '📊',
+            },
+            {
+              num: '04',
+              title: 'Laporan Nutrisi',
+              desc: 'Dapatkan laporan lengkap kalori, protein, lemak, karbo, dan rekomendasi pola makan.',
+              icon: '📋',
+            },
+          ].map((step, i) => (
+            <div
+              key={step.num}
+              className="animate-features opacity-0 bg-surface p-7 flex flex-col gap-4"
+              style={{ animationDelay: `${i * 0.08}s` }}
+            >
+              <div className="flex items-start justify-between">
+                <span className="text-2xl">{step.icon}</span>
+                <span className="text-xs font-mono font-bold text-text-disabled">{step.num}</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary mb-2">{step.title}</h3>
+                <p className="text-xs text-text-muted leading-relaxed">{step.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── DATASET INFO ── */}
+      <section className="border-t border-border">
+        <div className="container mx-auto px-6 max-w-7xl py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            
+            <div className="animate-features opacity-0">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="gold-line"></div>
+                <span className="section-label">Dataset</span>
+              </div>
+              <h2 className="text-2xl font-bold text-text-primary mb-4">
+                Data Gizi dari Sumber Terpercaya
+              </h2>
+              <p className="text-sm text-text-secondary leading-relaxed mb-6">
+                GiziVision menggunakan Indonesian Food and Drink Nutrition Dataset, 
+                kumpulan data gizi makanan dan minuman khas Indonesia yang mencakup 
+                lebih dari 1.300 entri dengan data kalori, protein, lemak, dan karbohidrat.
+              </p>
+              <div className="space-y-3">
+                {[
+                  'Tidak menggunakan data nutrisi buatan (dummy)',
+                  'Semua analisis dicocokkan dengan dataset real',
+                  'Data diproses secara lokal untuk privasi pengguna',
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-2.5">
+                    <CheckSquare className="w-4 h-4 text-gold flex-shrink-0" />
+                    <span className="text-sm text-text-secondary">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="animate-features opacity-0 grid grid-cols-2 gap-4">
+              {[
+                { icon: <Database className="w-5 h-5" />, label: 'Total Entri Pangan', value: stats.totalItems.toLocaleString('id-ID') },
+                { icon: <Layers className="w-5 h-5" />, label: 'Kategori Klaster', value: stats.totalCategories },
+                { icon: <CheckSquare className="w-5 h-5" />, label: 'Data Poin Nutrisi', value: stats.totalDataPoints.toLocaleString('id-ID') },
+                { icon: <ArrowRight className="w-5 h-5" />, label: 'Format Dataset', value: 'CSV · Local' },
+              ].map((item, i) => (
+                <div key={i} className="card p-5">
+                  <div className="text-text-muted mb-3">{item.icon}</div>
+                  <p className="stat-label mb-1">{item.label}</p>
+                  <p className="text-xl font-bold text-text-primary">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }
