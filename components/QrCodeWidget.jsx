@@ -101,7 +101,7 @@ export default function QrCodeWidget() {
         <div className="space-y-3">
           <button
             onClick={handleCopy}
-            className="w-full py-2.5 px-3 bg-[#181818] hover:bg-[#202020] border border-[#2a2a2a] hover:border-gold/30 rounded-xl flex items-center justify-between gap-3 group transition-all duration-200 cursor-pointer"
+            className="w-full py-2.5 px-3 bg-[#181818] hover:bg-card-hover border border-[#2a2a2a] hover:border-gold/30 rounded-xl flex items-center justify-between gap-3 group transition-all duration-200 cursor-pointer"
             title="Klik untuk menyalin"
           >
             <span className="text-[11px] font-mono text-text-secondary group-hover:text-gold transition-colors truncate select-all text-left">
